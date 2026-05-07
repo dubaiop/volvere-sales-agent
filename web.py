@@ -102,6 +102,7 @@ def dashboard():
 <head>
   <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>{COMPANY_NAME} Sales Agent</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     *,*::before,*::after{{box-sizing:border-box;margin:0;padding:0}}
     :root{{--bg:#07070f;--s:#0e0e1c;--s2:#141428;--b:#1a1a30;--b2:#242445;--a:#6366f1;--a2:#818cf8;--green:#10b981;--red:#ef4444;--gold:#f59e0b;--text:#f0f0ff;--m:#55557a;--m2:#8080a8;--r:12px}}
@@ -212,6 +213,10 @@ def dashboard():
     </div>
 
     <div id="pipeline">
+      <div class="section-label">Pipeline by Stage</div>
+      <div style="background:var(--s);border:1px solid var(--b);border-radius:var(--r);padding:20px;margin-bottom:16px">
+        <canvas id="pipelineChart" height="160"></canvas>
+      </div>
       <div class="section-label">Recent HubSpot Contacts</div>
       <div class="table-wrap">
         <table>
@@ -241,6 +246,33 @@ def dashboard():
 
 <script>
 const sid = 'web-' + Math.random().toString(36).slice(2,8);
+
+// Pipeline chart
+(async function(){{
+  try {{
+    const d = await fetch('/pipeline/data').then(r=>r.json());
+    if(!d.labels||!d.labels.length) return;
+    const ctx = document.getElementById('pipelineChart').getContext('2d');
+    new Chart(ctx, {{
+      type: 'bar',
+      data: {{
+        labels: d.labels,
+        datasets: [
+          {{ label: 'Deal Value ($)', data: d.values, backgroundColor: 'rgba(99,102,241,0.7)', borderColor: '#6366f1', borderWidth: 1, borderRadius: 6 }},
+          {{ label: 'Weighted ($)', data: d.weighted, backgroundColor: 'rgba(16,185,129,0.5)', borderColor: '#10b981', borderWidth: 1, borderRadius: 6 }}
+        ]
+      }},
+      options: {{
+        responsive: true, maintainAspectRatio: true,
+        plugins: {{ legend: {{ labels: {{ color: '#8080a8', font: {{ size: 12 }} }} }} }},
+        scales: {{
+          x: {{ ticks: {{ color: '#8080a8', font: {{ size: 11 }} }}, grid: {{ color: 'rgba(255,255,255,0.05)' }} }},
+          y: {{ ticks: {{ color: '#8080a8', font: {{ size: 11 }}, callback: v => '$'+v.toLocaleString() }}, grid: {{ color: 'rgba(255,255,255,0.05)' }} }}
+        }}
+      }}
+    }});
+  }} catch(e) {{ console.log('Chart error', e); }}
+}})();
 
 function selectSkill(id){{
   document.getElementById('skillSel').value=id;
@@ -338,6 +370,25 @@ def leads(tier: str = None):
 @app.get("/metrics")
 def metrics_endpoint():
     return get_metrics()
+
+
+@app.get("/pipeline/data")
+def pipeline_data():
+    try:
+        from hubspot import get_pipeline_stats
+        stats = get_pipeline_stats()
+        stages = stats.get("stages", {})
+        return {
+            "labels": list(stages.keys()),
+            "values": [round(s["value"]) for s in stages.values()],
+            "weighted": [round(s["weighted"]) for s in stages.values()],
+            "counts": [s["count"] for s in stages.values()],
+            "total_deals": stats["total_deals"],
+            "total_value": stats["total_value"],
+            "weighted_forecast": stats["weighted_forecast"],
+        }
+    except Exception as e:
+        return {"labels": [], "values": [], "weighted": [], "counts": [], "error": str(e)}
 
 
 @app.get("/health")

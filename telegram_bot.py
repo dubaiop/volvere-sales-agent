@@ -41,18 +41,60 @@ async def cmd_qualify(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ Error: {e}")
 
 
+def _make_pipeline_chart(stats: dict) -> bytes:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import io
+
+    stages = stats.get("stages", {})
+    labels = [s.replace("_", " ").title() for s in stages.keys()]
+    values = [s["value"] for s in stages.values()]
+    weighted = [s["weighted"] for s in stages.values()]
+
+    fig, ax = plt.subplots(figsize=(8, 4))
+    fig.patch.set_facecolor("#0e0e1c")
+    ax.set_facecolor("#07070f")
+
+    x = range(len(labels))
+    w = 0.35
+    bars1 = ax.bar([i - w/2 for i in x], values, w, label="Deal Value", color="#6366f1", alpha=0.85)
+    bars2 = ax.bar([i + w/2 for i in x], weighted, w, label="Weighted", color="#10b981", alpha=0.75)
+
+    ax.set_xticks(list(x))
+    ax.set_xticklabels(labels, color="#8080a8", fontsize=9, rotation=15, ha="right")
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"${v:,.0f}"))
+    ax.tick_params(colors="#8080a8")
+    ax.spines[:].set_color("#1a1a30")
+    ax.yaxis.label.set_color("#8080a8")
+    ax.set_title(
+        f"Pipeline  •  {stats['total_deals']} deals  •  ${stats['total_value']:,.0f} total  •  ${stats['weighted_forecast']:,.0f} weighted",
+        color="#f0f0ff", fontsize=10, pad=10,
+    )
+    ax.legend(facecolor="#0e0e1c", edgecolor="#1a1a30", labelcolor="#8080a8", fontsize=9)
+    ax.grid(axis="y", color="#1a1a30", linewidth=0.6)
+    plt.tight_layout()
+
+    buf = io.BytesIO()
+    plt.savefig(buf, format="png", dpi=130, facecolor=fig.get_facecolor())
+    plt.close(fig)
+    buf.seek(0)
+    return buf.read()
+
+
 async def cmd_pipeline(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         from hubspot import get_pipeline_stats
         stats = get_pipeline_stats()
-        msg = (
+        chart_bytes = _make_pipeline_chart(stats)
+        caption = (
             f"📊 *Pipeline Summary*\n\n"
             f"*Open Deals:* {stats['total_deals']}\n"
             f"*Total Value:* ${stats['total_value']:,.0f}\n"
             f"*Weighted Forecast:* ${stats['weighted_forecast']:,.0f}\n\n"
             f"_Volvere Sales Agent_"
         )
-        await update.message.reply_text(msg, parse_mode="Markdown")
+        await update.message.reply_photo(photo=chart_bytes, caption=caption, parse_mode="Markdown")
     except Exception as e:
         await update.message.reply_text(f"❌ Error: {e}")
 
