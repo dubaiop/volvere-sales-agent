@@ -487,21 +487,8 @@ async function generate(){{
     }}
     const d=await r.json();
     const text=d.messages||d.detail||'No response received';
-    const labels=['CONNECTION REQUEST','OPENER MESSAGE','FOLLOW-UP 1 (Day 3)','FOLLOW-UP 2 (Day 6)','FOLLOW-UP 3 (Day 10)','BREAKUP MESSAGE (Day 13)'];
-    const re=/\n(?=\d+[\.\)]\s|\*\*\d+[\.\)]\s|##\s*\d+)/;
-    const parts=text.split(re).filter(s=>s.trim());
-    let html='';
-    if(parts.length>=2){{
-      parts.forEach((s,i)=>{{
-        const label=labels[i]||'Message '+(i+1);
-        const safe=s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        html+=`<div class="msg-block"><div class="msg-label">${{label}}</div><button class="copy-btn" onclick="copyMsg(this)">Copy</button><div class="msg-text">${{safe}}</div></div>`;
-      }});
-    }} else {{
-      const safe=text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-      html=`<div class="msg-block"><div class="msg-label">GENERATED SEQUENCE</div><button class="copy-btn" onclick="copyBlock(this)">Copy All</button><div class="msg-text">${{safe}}</div></div>`;
-    }}
-    out.innerHTML=html;
+    const safe=text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    out.innerHTML=`<div class="msg-block"><div class="msg-label">SEQUENCE FOR ${{name.toUpperCase()}}</div><button class="copy-btn" onclick="copyBlock(this)">Copy All</button><div class="msg-text">${{safe}}</div></div>`;
   }}catch(e){{
     out.innerHTML=`<p style="color:#ef4444;font-size:13px">Error: ${{e.message}}</p>`;
   }}finally{{
