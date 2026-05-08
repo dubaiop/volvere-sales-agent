@@ -169,7 +169,7 @@ def dashboard():
 <header>
   <a class="logo" href="/"><span class="logo-dot"></span>{COMPANY_NAME} Sales Agent</a>
   <nav class="nav">
-    <a href="#skills">Skills</a><a href="#pipeline">Pipeline</a><a href="/audit">Audit</a><a href="/docs">API</a>
+    <a href="#skills">Skills</a><a href="#pipeline">Pipeline</a><a href="/linkedin">LinkedIn</a><a href="/audit">Audit</a><a href="/docs">API</a>
   </nav>
 </header>
 <main>
@@ -355,6 +355,157 @@ def trigger_qualify():
     from scheduler import auto_qualify_new_leads
     threading.Thread(target=auto_qualify_new_leads, daemon=True).start()
     return {"status": "running"}
+
+
+class LinkedInReq(BaseModel):
+    name: str
+    title: str
+    company: str
+    location: Optional[str] = "Dubai"
+    industry: Optional[str] = ""
+    notes: Optional[str] = ""
+    product_context: Optional[str] = ""
+
+
+@app.post("/linkedin/generate")
+def linkedin_generate(req: LinkedInReq):
+    try:
+        prompt = f"""Write a hyper-personalized LinkedIn outreach sequence for this prospect:
+
+Name: {req.name}
+Title: {req.title}
+Company: {req.company}
+Location: {req.location}
+Industry: {req.industry}
+Additional notes: {req.notes}
+
+Product/Service being sold: {req.product_context or "Dubai life setup service — fixed price AED 15,000, covers residency, banking, utilities, healthcare, schools in 3 weeks"}
+
+Write:
+1. CONNECTION REQUEST NOTE (max 300 chars) — personal, not salesy
+2. OPENER MESSAGE (after they accept) — reference something specific about them, lead with value, one clear CTA
+3. FOLLOW-UP 1 (day 3) — add specific value relevant to their industry/role
+4. FOLLOW-UP 2 (day 6) — social proof angle
+5. FOLLOW-UP 3 (day 10) — direct ROI challenge
+6. BREAKUP MESSAGE (day 13) — short, walk away, triggers response
+
+Make each message feel hand-written, not templated. Use their specific industry context."""
+
+        result = run_skill("outreach-writer", prompt, req.product_context or "", "linkedin-gen")
+        return {"name": req.name, "messages": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/linkedin", response_class=HTMLResponse)
+def linkedin_page():
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>LinkedIn Outreach Generator</title>
+  <style>
+    *{{box-sizing:border-box;margin:0;padding:0}}
+    :root{{--bg:#07070f;--s:#0e0e1c;--s2:#141428;--b:#1a1a30;--b2:#242445;--a:#6366f1;--a2:#818cf8;--green:#10b981;--text:#f0f0ff;--m:#55557a;--m2:#8080a8;--r:12px}}
+    body{{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;padding:32px 40px}}
+    h1{{font-size:24px;font-weight:700;margin-bottom:6px}}
+    .sub{{color:var(--m2);margin-bottom:28px;font-size:14px}}
+    .grid{{display:grid;grid-template-columns:400px 1fr;gap:24px;max-width:1100px}}
+    .card{{background:var(--s);border:1px solid var(--b);border-radius:var(--r);padding:20px;display:flex;flex-direction:column;gap:12px}}
+    label{{font-size:12px;color:var(--m2);font-weight:500;display:block;margin-bottom:3px}}
+    input,textarea{{width:100%;background:var(--bg);border:1px solid var(--b2);border-radius:8px;color:var(--text);padding:9px 12px;font-size:13px;font-family:inherit;outline:none}}
+    input:focus,textarea:focus{{border-color:var(--a)}}
+    textarea{{resize:vertical;min-height:70px}}
+    .btn{{background:var(--a);color:#fff;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;width:100%}}
+    .btn:disabled{{opacity:.4}}
+    .btn:hover{{opacity:.85}}
+    .result-card{{background:var(--s);border:1px solid var(--b);border-radius:var(--r);padding:20px}}
+    .msg-block{{background:var(--bg);border:1px solid var(--b2);border-radius:8px;padding:14px;margin-bottom:12px;position:relative}}
+    .msg-label{{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--a2);margin-bottom:8px}}
+    .msg-text{{font-size:13px;line-height:1.7;white-space:pre-wrap;color:var(--text)}}
+    .copy-btn{{position:absolute;top:10px;right:10px;background:var(--b2);color:var(--m2);border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer}}
+    .copy-btn:hover{{color:var(--text)}}
+    .spinner{{display:inline-block;width:13px;height:13px;border:2px solid rgba(129,140,248,.3);border-top-color:var(--a2);border-radius:50%;animation:spin .7s linear infinite;margin-right:6px;vertical-align:middle}}
+    @keyframes spin{{to{{transform:rotate(360deg)}}}}
+    .back{{color:var(--m2);text-decoration:none;font-size:13px;display:inline-block;margin-bottom:20px}}
+    .back:hover{{color:var(--text)}}
+    .section-title{{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--m);margin-bottom:14px}}
+    @media(max-width:800px){{.grid{{grid-template-columns:1fr}}body{{padding:20px}}}}
+  </style>
+</head>
+<body>
+  <a class="back" href="/">← Back to Sales Agent</a>
+  <h1>LinkedIn Outreach Generator</h1>
+  <p class="sub">Paste any LinkedIn profile → get a personalized 6-message sequence instantly.</p>
+
+  <div class="grid">
+    <div class="card">
+      <div class="section-title">Profile Info</div>
+      <div><label>Full Name</label><input id="name" placeholder="James Mitchell"/></div>
+      <div><label>Job Title</label><input id="title" placeholder="Founder & CEO"/></div>
+      <div><label>Company</label><input id="company" placeholder="Fintech Startup"/></div>
+      <div><label>Location</label><input id="location" placeholder="Dubai, UAE" value="Dubai, UAE"/></div>
+      <div><label>Industry</label><input id="industry" placeholder="Fintech, SaaS, Real Estate..."/></div>
+      <div><label>Notes (recent post, mutual connection, anything specific)</label><textarea id="notes" placeholder="Just moved from London, posted about Dubai's startup ecosystem last week..."></textarea></div>
+      <div><label>Your Product/Service (optional — defaults to Dubai setup service)</label><textarea id="product" placeholder="Leave blank to use Dubai life setup service AED 15,000"></textarea></div>
+      <button class="btn" id="genBtn" onclick="generate()">Generate Messages</button>
+    </div>
+
+    <div class="result-card">
+      <div class="section-title">Generated Sequence</div>
+      <div id="output"><p style="color:var(--m2);font-size:13px">Fill in the profile on the left and click Generate.</p></div>
+    </div>
+  </div>
+
+<script>
+async function generate(){{
+  const name=document.getElementById('name').value.trim();
+  const title=document.getElementById('title').value.trim();
+  const company=document.getElementById('company').value.trim();
+  if(!name||!title||!company){{alert('Name, title and company are required.');return;}}
+  const btn=document.getElementById('genBtn');
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Generating...';
+  document.getElementById('output').innerHTML='<p style="color:var(--m2)">Writing personalized messages...</p>';
+  try{{
+    const r=await fetch('/linkedin/generate',{{
+      method:'POST',headers:{{'Content-Type':'application/json'}},
+      body:JSON.stringify({{
+        name,title,company,
+        location:document.getElementById('location').value,
+        industry:document.getElementById('industry').value,
+        notes:document.getElementById('notes').value,
+        product_context:document.getElementById('product').value
+      }})
+    }});
+    const d=await r.json();
+    if(d.messages){{
+      const labels=['Connection Request','Opener Message','Follow-Up 1 (Day 3)','Follow-Up 2 (Day 6)','Follow-Up 3 (Day 10)','Breakup Message (Day 13)'];
+      const sections=d.messages.split(/\n(?=\d\.|\*\*\d\.|\*\*CONNECTION|\*\*OPENER|\*\*FOLLOW-UP|\*\*BREAKUP)/i);
+      let html='';
+      sections.forEach((s,i)=>{{
+        if(!s.trim())return;
+        const label=labels[i]||`Message ${{i+1}}`;
+        html+=`<div class="msg-block">
+          <div class="msg-label">${{label}}</div>
+          <button class="copy-btn" onclick="copyMsg(this)">Copy</button>
+          <div class="msg-text">${{s.replace(/</g,'&lt;').replace(/>/g,'&gt;')}}</div>
+        </div>`;
+      }});
+      document.getElementById('output').innerHTML=html||`<div class="msg-block"><div class="msg-text">${{d.messages}}</div></div>`;
+    }} else {{
+      document.getElementById('output').innerHTML=`<p style="color:var(--red)">${{d.detail||'Error generating messages'}}</p>`;
+    }}
+  }}catch(e){{document.getElementById('output').innerHTML=`<p style="color:red">Error: ${{e.message}}</p>`;}}
+  btn.disabled=false;btn.innerHTML='Generate Messages';
+}}
+
+function copyMsg(btn){{
+  const text=btn.nextElementSibling.textContent;
+  navigator.clipboard.writeText(text).then(()=>{{btn.textContent='Copied!';setTimeout(()=>btn.textContent='Copy',1500);}});
+}}
+</script>
+</body>
+</html>"""
 
 
 @app.get("/audit")
