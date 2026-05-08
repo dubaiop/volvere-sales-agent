@@ -464,11 +464,14 @@ async function generate(){{
   const company=document.getElementById('company').value.trim();
   if(!name||!title||!company){{alert('Name, title and company are required.');return;}}
   const btn=document.getElementById('genBtn');
-  btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Generating...';
-  document.getElementById('output').innerHTML='<p style="color:var(--m2)">Writing personalized messages...</p>';
+  const out=document.getElementById('output');
+  btn.disabled=true;
+  btn.innerHTML='<span class="spinner"></span>Generating...';
+  out.innerHTML='<p style="color:var(--m2);font-size:13px">Writing personalized messages — this takes 15–20 seconds...</p>';
   try{{
     const r=await fetch('/linkedin/generate',{{
-      method:'POST',headers:{{'Content-Type':'application/json'}},
+      method:'POST',
+      headers:{{'Content-Type':'application/json'}},
       body:JSON.stringify({{
         name,title,company,
         location:document.getElementById('location').value,
@@ -477,31 +480,43 @@ async function generate(){{
         product_context:document.getElementById('product').value
       }})
     }});
-    const d=await r.json();
-    if(d.messages){{
-      const labels=['Connection Request','Opener Message','Follow-Up 1 (Day 3)','Follow-Up 2 (Day 6)','Follow-Up 3 (Day 10)','Breakup Message (Day 13)'];
-      const sections=d.messages.split(/\n(?=\d\.|\*\*\d\.|\*\*CONNECTION|\*\*OPENER|\*\*FOLLOW-UP|\*\*BREAKUP)/i);
-      let html='';
-      sections.forEach((s,i)=>{{
-        if(!s.trim())return;
-        const label=labels[i]||`Message ${{i+1}}`;
-        html+=`<div class="msg-block">
-          <div class="msg-label">${{label}}</div>
-          <button class="copy-btn" onclick="copyMsg(this)">Copy</button>
-          <div class="msg-text">${{s.replace(/</g,'&lt;').replace(/>/g,'&gt;')}}</div>
-        </div>`;
-      }});
-      document.getElementById('output').innerHTML=html||`<div class="msg-block"><div class="msg-text">${{d.messages}}</div></div>`;
-    }} else {{
-      document.getElementById('output').innerHTML=`<p style="color:var(--red)">${{d.detail||'Error generating messages'}}</p>`;
+    if(!r.ok){{
+      const err=await r.json().catch(()=>({{detail:'Server error '+r.status}}));
+      out.innerHTML=`<p style="color:#ef4444;font-size:13px">Error ${{r.status}}: ${{err.detail||r.statusText}}</p>`;
+      return;
     }}
-  }}catch(e){{document.getElementById('output').innerHTML=`<p style="color:red">Error: ${{e.message}}</p>`;}}
-  btn.disabled=false;btn.innerHTML='Generate Messages';
+    const d=await r.json();
+    const text=d.messages||d.detail||'No response received';
+    const labels=['CONNECTION REQUEST','OPENER MESSAGE','FOLLOW-UP 1 (Day 3)','FOLLOW-UP 2 (Day 6)','FOLLOW-UP 3 (Day 10)','BREAKUP MESSAGE (Day 13)'];
+    const re=/\n(?=\d+[\.\)]\s|\*\*\d+[\.\)]\s|##\s*\d+)/;
+    const parts=text.split(re).filter(s=>s.trim());
+    let html='';
+    if(parts.length>=2){{
+      parts.forEach((s,i)=>{{
+        const label=labels[i]||'Message '+(i+1);
+        const safe=s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        html+=`<div class="msg-block"><div class="msg-label">${{label}}</div><button class="copy-btn" onclick="copyMsg(this)">Copy</button><div class="msg-text">${{safe}}</div></div>`;
+      }});
+    }} else {{
+      const safe=text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      html=`<div class="msg-block"><div class="msg-label">GENERATED SEQUENCE</div><button class="copy-btn" onclick="copyBlock(this)">Copy All</button><div class="msg-text">${{safe}}</div></div>`;
+    }}
+    out.innerHTML=html;
+  }}catch(e){{
+    out.innerHTML=`<p style="color:#ef4444;font-size:13px">Error: ${{e.message}}</p>`;
+  }}finally{{
+    btn.disabled=false;
+    btn.innerHTML='Generate Messages';
+  }}
 }}
 
 function copyMsg(btn){{
   const text=btn.nextElementSibling.textContent;
-  navigator.clipboard.writeText(text).then(()=>{{btn.textContent='Copied!';setTimeout(()=>btn.textContent='Copy',1500);}});
+  navigator.clipboard.writeText(text).then(()=>{{btn.textContent='Copied!';setTimeout(()=>btn.textContent='Copy',1500);}}).catch(()=>alert(btn.nextElementSibling.textContent));
+}}
+function copyBlock(btn){{
+  const text=btn.nextElementSibling.textContent;
+  navigator.clipboard.writeText(text).then(()=>{{btn.textContent='Copied!';setTimeout(()=>btn.textContent='Copy All',1500);}}).catch(()=>alert(text));
 }}
 </script>
 </body>
