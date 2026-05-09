@@ -6,7 +6,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import Optional
 
-from config import PORT, COMPANY_NAME, TELEGRAM_BOT_TOKEN
+from config import PORT, COMPANY_NAME, TELEGRAM_BOT_TOKEN, NVIDIA_API_KEY
 from agent import run_skill, chat, clear_memory
 from skills.prompts import SKILL_MAP
 from database import init_db, get_leads, get_audit_log, get_metrics
@@ -391,8 +391,22 @@ Write:
 
 Make each message feel hand-written, not templated. Use their specific industry context."""
 
-        result = run_skill("outreach-writer", prompt, req.product_context or "", "linkedin-gen",
-                           model="claude-haiku-4-5-20251001", max_tokens=1500)
+        if NVIDIA_API_KEY:
+            from openai import OpenAI as _OAI
+            _nv = _OAI(base_url="https://integrate.api.nvidia.com/v1", api_key=NVIDIA_API_KEY)
+            r = _nv.chat.completions.create(
+                model="meta/llama-3.1-70b-instruct",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=1500,
+                temperature=0.7,
+            )
+            result = r.choices[0].message.content
+            from database import log_interaction
+            log_interaction("linkedin-gen", "outreach-writer", req.name, result)
+        else:
+            result = run_skill("outreach-writer", prompt, req.product_context or "", "linkedin-gen",
+                               model="claude-haiku-4-5-20251001", max_tokens=1500)
+
         return {"name": req.name, "messages": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
