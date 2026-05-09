@@ -5,7 +5,7 @@ from skills.prompts import SKILL_MAP
 from database import log_interaction
 
 _memory: dict[str, list[dict]] = {}
-_GROQ_MODEL = "llama-3.1-70b-versatile"
+_GROQ_MODEL = "llama-3.3-70b-versatile"
 
 SALES_SYSTEM = f"""You are an elite AI Sales Agent for {COMPANY_NAME} with 20+ years of B2B SaaS sales expertise.
 You help with lead qualification, outreach, objection handling, deal coaching, competitor positioning, and pipeline management.

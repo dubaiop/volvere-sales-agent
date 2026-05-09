@@ -395,7 +395,7 @@ Make each message feel hand-written, not templated. Use their specific industry 
             from openai import OpenAI as _OAI
             _gr = _OAI(base_url="https://api.groq.com/openai/v1", api_key=GROQ_API_KEY)
             r = _gr.chat.completions.create(
-                model="llama-3.1-70b-versatile",
+                model="llama-3.3-70b-versatile",
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=1500,
                 temperature=0.7,
