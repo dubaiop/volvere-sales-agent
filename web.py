@@ -391,7 +391,8 @@ Write:
 
 Make each message feel hand-written, not templated. Use their specific industry context."""
 
-        result = run_skill("outreach-writer", prompt, req.product_context or "", "linkedin-gen")
+        result = run_skill("outreach-writer", prompt, req.product_context or "", "linkedin-gen",
+                           model="claude-haiku-4-5-20251001", max_tokens=1500)
         return {"name": req.name, "messages": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

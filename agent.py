@@ -8,7 +8,7 @@ from database import log_interaction
 _memory: dict[str, list[dict]] = {}
 
 
-def run_skill(skill_id: str, user_input: str, context: str = "", session_id: str = "default") -> str:
+def run_skill(skill_id: str, user_input: str, context: str = "", session_id: str = "default", model: str = None, max_tokens: int = 4096) -> str:
     skill = SKILL_MAP.get(skill_id)
     if not skill:
         raise ValueError(f"Unknown skill '{skill_id}'. Available: {', '.join(SKILL_MAP.keys())}")
@@ -17,8 +17,8 @@ def run_skill(skill_id: str, user_input: str, context: str = "", session_id: str
     full_input = f"Context:\n{context}\n\n---\n\n{user_input}" if context else user_input
 
     response = client.messages.create(
-        model=CLAUDE_MODEL,
-        max_tokens=4096,
+        model=model or CLAUDE_MODEL,
+        max_tokens=max_tokens,
         system=skill["prompt"],
         messages=[{"role": "user", "content": full_input}],
     )
