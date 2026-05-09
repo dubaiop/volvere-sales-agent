@@ -6,7 +6,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import Optional
 
-from config import PORT, COMPANY_NAME, TELEGRAM_BOT_TOKEN, NVIDIA_API_KEY
+from config import PORT, COMPANY_NAME, TELEGRAM_BOT_TOKEN, GROQ_API_KEY
 from agent import run_skill, chat, clear_memory
 from skills.prompts import SKILL_MAP
 from database import init_db, get_leads, get_audit_log, get_metrics
@@ -391,11 +391,11 @@ Write:
 
 Make each message feel hand-written, not templated. Use their specific industry context."""
 
-        if NVIDIA_API_KEY:
+        if GROQ_API_KEY:
             from openai import OpenAI as _OAI
-            _nv = _OAI(base_url="https://integrate.api.nvidia.com/v1", api_key=NVIDIA_API_KEY)
-            r = _nv.chat.completions.create(
-                model="meta/llama-3.1-70b-instruct",
+            _gr = _OAI(base_url="https://api.groq.com/openai/v1", api_key=GROQ_API_KEY)
+            r = _gr.chat.completions.create(
+                model="llama-3.1-70b-versatile",
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=1500,
                 temperature=0.7,
