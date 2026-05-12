@@ -27,6 +27,15 @@ def log_interaction(session_id: str, skill_id: str, user_input: str, output: str
         for key in (f"count_{skill_id}", "total"):
             c.execute("INSERT INTO metrics (metric_key,metric_value) VALUES (?,1) ON CONFLICT(metric_key) DO UPDATE SET metric_value=metric_value+1", (key,))
 
+def is_already_qualified(hubspot_id: str) -> bool:
+    """Returns True if this HubSpot contact has already been qualified."""
+    if not hubspot_id:
+        return False
+    with _conn() as c:
+        row = c.execute("SELECT 1 FROM leads WHERE hubspot_id=? LIMIT 1", (hubspot_id,)).fetchone()
+        return row is not None
+
+
 def save_lead(email: str, name: str, company: str, score: int, tier: str, hubspot_id: str = "", notes: str = ""):
     with _conn() as c:
         c.execute("""INSERT INTO leads (email,name,company,score,tier,hubspot_id,notes)
