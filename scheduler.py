@@ -61,27 +61,47 @@ def auto_qualify_new_leads():
 
             score = pre_score
             tier = "T3"
-            for line in result.split("\n"):
+            lines = result.split("\n")
+            for i, line in enumerate(lines):
                 if "Score" in line and "/" in line:
                     try:
                         score = int(''.join(filter(str.isdigit, line.split("/")[0].split(":")[-1])))
                     except Exception:
                         pass
-                if "Tier 1" in line or "T1" in line:
-                    tier = "T1"
-                elif "Tier 2" in line or "T2" in line:
-                    tier = "T2"
-                elif "DQ" in line or "Disqualified" in line:
-                    tier = "DQ"
+                # Match tier from a line that has "Tier" keyword — check DQ first to avoid
+                # false T1 match from tier-definition text like "(T1: 80-100 / ... / DQ: <40)"
+                if "Tier" in line or "tier" in line:
+                    upper = line.upper()
+                    if "DQ" in upper or "DISQUALIF" in upper:
+                        tier = "DQ"
+                    elif "T1" in upper and "T2" not in upper and "T3" not in upper:
+                        tier = "T1"
+                    elif "T2" in upper:
+                        tier = "T2"
+                    elif "T3" in upper:
+                        tier = "T3"
+
+            # Score gate: never fire T1 alert for low scores regardless of text parsing
+            if score < 60 and tier == "T1":
+                tier = "T2" if score >= 40 else ("T3" if score >= 20 else "DQ")
 
             save_lead(email, name, company, score, tier, hubspot_id, result[:500])
 
             if tier == "T1":
                 next_action = "Immediate outreach — route to AE"
-                for line in result.split("\n"):
-                    if "Next Action" in line:
-                        next_action = line.split(":", 1)[-1].strip()
+                capture_next = False
+                for line in lines:
+                    if capture_next and line.strip():
+                        next_action = line.strip().lstrip("-•* ")
                         break
+                    if "Next Action" in line:
+                        # If value is on same line after colon, use it; otherwise grab next line
+                        parts = line.split(":", 1)
+                        if len(parts) > 1 and parts[1].strip():
+                            next_action = parts[1].strip()
+                            break
+                        else:
+                            capture_next = True
                 alert_hot_lead(name, email, company, score, next_action)
 
         logger.info(
